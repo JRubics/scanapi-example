@@ -1,0 +1,81 @@
+endpoints:
+  - name: sequoia-api
+    path: https://sequoia.namecheapcloud.host
+    headers:
+      Content-Type: application/json
+      Authorization: Bearer ${TOKEN} # env var
+    endpoints: # nested endpoints 
+      - name: user
+        path: /website/easywp/api/v1beta1
+        requests:
+          - name: Get current user
+            method: get
+            path: /user
+            vars: # creating variables
+              user_username: ${{response.json()["nickname"]}}
+              user_email: ${{response.json()["email"]}}
+            tests:
+              - name: status_code_is_200
+                assert: ${{ response.status_code == 200 }} # running python code
+      - name: websites
+        path: /website/easywp/api/v1alpha1
+        requests:
+          - name: Get island TOKEN
+            method: get
+            path: /websites/island
+            tests:
+              - name: status_code_is_200
+                assert: ${{ response.status_code == 200 }}
+            vars:
+              island_token: ${{response.json()["island_token"]}}
+          - name: Create website
+            method: post
+            path: /websites
+            body:
+              admin_email: ${user_email}
+              admin_password: ${{''.join(random.sample("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 10))}} # running python code
+              admin_username: ${user_username}
+              app_name: "qwe"
+              categories: []
+              domain: ""
+              island_token: ${island_token}
+              plugins: []
+              subscription_id: 3916150
+              theme: "twentytwentytwo"
+              web_title: "qwe"
+            tests:
+              - name: status_code_is_202
+                assert: ${{ response.status_code == 202 }}
+          - name: Get new website from index
+            method: get
+            path: /websites?sort=id&order=DESC&offset=0&limit=1
+            tests:
+              - name: status_code_is_200
+                assert: ${{ response.status_code == 200 }}
+              - name: name_check
+                assert: ${{ response.json()[0]["app_name"] == "qwe" }}
+            vars:
+              website_id: ${{response.json()[0]["id"]}}
+          - name: Get new website
+            method: get
+            path: /websites/${website_id}
+            tests:
+              - name: status_code_is_200
+                assert: ${{ response.status_code == 200 }}
+              - name: name_check
+                assert: ${{ response.json()["app_name"] == "qwe" }}
+          - name: Delete website
+            method: delete
+            path: /websites/${website_id}
+            tests:
+              - name: status_code_is_202
+                assert: ${{ response.status_code == 202 }}
+          - name: Try to get website
+            method: get
+            path: /websites/${website_id}
+            delay: 1000 # 1 second delay
+            retry:
+              max_retries: 10 # retry 10 times
+            tests:
+              - name: status_code_is_404
+                assert: ${{ response.status_code == 404 }}

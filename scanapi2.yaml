@@ -1,0 +1,13 @@
+endpoints:
+  - name: sequoia-api
+    path: https://sequoia.namecheapcloud.host
+    headers:
+      Content-Type: application/json
+      Authorization: Bearer ${TOKEN}
+    requests:
+      - name: Get website
+        method: get
+        path: /website/easywp/api/v1alpha1/websites/3308
+        tests:
+          - name: status_code_is_200
+            assert: ${{ response.status_code == 200 }}
